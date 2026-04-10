@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:redis_pass}
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: "*"
+            exposedHeaders: [Authorization]
+
+      routes:
+        - id: user-auth-service
+          uri: ${USER_AUTH_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**, /api/v1/users/**
+
+        - id: job-posting-service
+          uri: ${JOB_POSTING_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/jobs/**
+
+        - id: application-service
+          uri: ${APPLICATION_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/applications/**
+
+        - id: notification-service
+          uri: ${NOTIFICATION_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/notifications/**
+
+        - id: resume-service
+          uri: ${RESUME_URI:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/resumes/**
+
+jwt:
+  secret: ${JWT_SECRET:my-super-secret-key-must-be-at-least-32-chars}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, gateway
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-}]"
