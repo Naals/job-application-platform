@@ -4,13 +4,17 @@ package com.project.userauthservice.service;
 
 import com.project.userauthservice.domain.entity.User;
 import com.project.userauthservice.domain.repository.UserRepository;
+import com.project.userauthservice.kafka.UserEventPublisher;
 import com.project.userauthservice.security.JwtService;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
