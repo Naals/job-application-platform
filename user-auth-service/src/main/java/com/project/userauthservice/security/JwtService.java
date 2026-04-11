@@ -88,4 +88,41 @@ public class JwtService {
     private SecretKey signingKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
+
+    // ── Blacklist + revoke ───────────────────────────────
+
+    public void blacklistToken(String token) {
+        try {
+            Claims claims = validateToken(token);
+            long ttlMs = claims.getExpiration().getTime() - System.currentTimeMillis();
+            if (ttlMs > 0) {
+                redisTemplate.opsForValue().set(
+                        BLACKLIST_PREFIX + token,
+                        "revoked",
+                        Duration.ofMillis(ttlMs)
+                );
+            }
+        } catch (Exception ex) {
+            log.warn("Blacklisting an already-invalid token: {}", ex.getMessage());
+        }
+    }
+
+    public void revokeRefreshToken(String userId) {
+        redisTemplate.delete(REFRESH_PREFIX + userId);
+    }
+
+    public boolean isTokenBlacklisted(String token) {
+        boolean boo = false;
+        try{
+            boo = redisTemplate.hasKey(BLACKLIST_PREFIX + token);
+        } catch (NullPointerException e){
+            log.error(e.getMessage());
+        }
+        return boo;
+    }
+
+    public boolean isRefreshTokenValid(String userId, String token) {
+        String stored = redisTemplate.opsForValue().get(REFRESH_PREFIX + userId);
+        return token.equals(stored);
+    }
 }
