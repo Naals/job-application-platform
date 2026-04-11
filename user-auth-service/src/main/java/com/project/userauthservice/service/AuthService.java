@@ -4,6 +4,7 @@ package com.project.userauthservice.service;
 
 import com.project.userauthservice.domain.entity.User;
 import com.project.userauthservice.domain.repository.UserRepository;
+import com.project.userauthservice.exception.*;
 import com.project.userauthservice.kafka.UserEventPublisher;
 import com.project.userauthservice.security.JwtService;
 import io.jsonwebtoken.Claims;
