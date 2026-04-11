@@ -59,6 +59,36 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
+    public AuthResponse refreshToken(RefreshTokenRequest req) {
+        Claims claims;
+        try {
+            claims = jwtService.validateToken(req.refreshToken());
+        } catch (Exception ex) {
+            throw new InvalidTokenException("Refresh token is invalid or expired");
+        }
+
+        String userId = claims.getSubject();
+
+        if (!jwtService.isRefreshTokenValid(userId, req.refreshToken())) {
+            throw new InvalidTokenException("Refresh token has been revoked");
+        }
+
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new InvalidTokenException("User not found"));
+
+        // Rotate: revoke old, issue new pair
+        jwtService.revokeRefreshToken(userId);
+        log.info("Token refreshed for user: {}", user.getEmail());
+        return buildAuthResponse(user);
+    }
+
+    public void logout(String accessToken) {
+        String userId = jwtService.extractUserId(accessToken);
+        jwtService.blacklistToken(accessToken);
+        jwtService.revokeRefreshToken(userId);
+        log.info("User {} logged out", userId);
+    }
+
     private AuthResponse buildAuthResponse(User user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
@@ -69,4 +99,6 @@ public class AuthService {
                 user.getLastName()
         );
     }
+
+
 }
