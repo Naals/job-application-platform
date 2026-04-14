@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Application Submitted</title>
+    <style>
+        body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
+        .container { max-width:600px; margin:40px auto; background:#ffffff; border-radius:8px; overflow:hidden; }
+        .header { background:#1D9E75; padding:32px 40px; text-align:center; }
+        .header h1 { color:#ffffff; margin:0; font-size:22px; }
+        .body { padding:40px; color:#333333; line-height:1.7; }
+        .info-box { background:#f0faf5; border-left:4px solid #1D9E75;
+            padding:16px 20px; border-radius:4px; margin:20px 0; }
+        .info-box p { margin:4px 0; }
+        .btn { display:inline-block; margin-top:24px; padding:12px 28px;
+            background:#1D9E75; color:#ffffff; text-decoration:none;
+            border-radius:6px; font-weight:bold; }
+        .footer { background:#f8f8f8; padding:20px 40px; font-size:12px; color:#999; text-align:center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Application Received</h1>
+    </div>
+    <div class="body">
+        <p>Hi there,</p>
+        <p>We have received your application. Here are the details:</p>
+        <div class="info-box">
+            <p><strong>Position:</strong> <span th:text="${jobTitle}">Job Title</span></p>
+            <p><strong>Company:</strong>  <span th:text="${companyName}">Company</span></p>
+            <p><strong>Applied on:</strong> <span th:text="${submittedAt}">Date</span></p>
+        </div>
+        <p>The employer will review your application and get back to you. You can track your
+            application status in your dashboard.</p>
+        <p>
+            <a th:href="${platformUrl + '/applications'}" class="btn">View My Applications</a>
+        </p>
+        <p>Good luck! — The <span th:text="${fromName}">Job Platform</span> Team</p>
+    </div>
+    <div class="footer">
+        <a th:href="${platformUrl}" th:text="${platformUrl}">jobplatform.com</a>
+    </div>
+</div>
+</body>
+</html>

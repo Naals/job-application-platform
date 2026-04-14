@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Application Status Update</title>
+    <style>
+        body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
+        .container { max-width:600px; margin:40px auto; background:#ffffff; border-radius:8px; overflow:hidden; }
+        .header { background:#534AB7; padding:32px 40px; text-align:center; }
+        .header h1 { color:#ffffff; margin:0; font-size:22px; }
+        .body { padding:40px; color:#333333; line-height:1.7; }
+        .status-badge { display:inline-block; padding:6px 16px; border-radius:20px;
+            font-weight:bold; font-size:14px; margin:8px 0; }
+        .status-ACCEPTED          { background:#d4edda; color:#155724; }
+        .status-REJECTED          { background:#f8d7da; color:#721c24; }
+        .status-INTERVIEW_SCHEDULED { background:#cce5ff; color:#004085; }
+        .status-OFFER_EXTENDED    { background:#fff3cd; color:#856404; }
+        .status-UNDER_REVIEW      { background:#e2e3e5; color:#383d41; }
+        .status-WITHDRAWN         { background:#f8f9fa; color:#6c757d; }
+        .info-box { background:#f4f4f9; border-left:4px solid #534AB7;
+            padding:16px 20px; border-radius:4px; margin:20px 0; }
+        .info-box p { margin:4px 0; }
+        .btn { display:inline-block; margin-top:24px; padding:12px 28px;
+            background:#534AB7; color:#ffffff; text-decoration:none;
+            border-radius:6px; font-weight:bold; }
+        .footer { background:#f8f8f8; padding:20px 40px; font-size:12px; color:#999; text-align:center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Application Status Update</h1>
+    </div>
+    <div class="body">
+        <p>Hi there,</p>
+        <p>Your application status has been updated:</p>
+        <div class="info-box">
+            <p><strong>Position:</strong>  <span th:text="${jobTitle}">Job Title</span></p>
+            <p><strong>Company:</strong>   <span th:text="${companyName}">Company</span></p>
+            <p><strong>New status:</strong>
+                <span class="status-badge"
+                      th:classappend="'status-' + ${newStatus}"
+                      th:text="${newStatus}">STATUS</span>
+            </p>
+            <p th:if="${reason != null and !#strings.isEmpty(reason)}">
+                <strong>Note:</strong> <span th:text="${reason}">Reason</span>
+            </p>
+        </div>
+        <p th:if="${newStatus == 'INTERVIEW_SCHEDULED'}">
+            Congratulations! The employer wants to schedule an interview. Please check your email
+            for further details.
+        </p>
+        <p th:if="${newStatus == 'OFFER_EXTENDED'}">
+            Great news — you have received a job offer! Log in to review and respond.
+        </p>
+        <p th:if="${newStatus == 'ACCEPTED'}">
+            Congratulations on your new role! We wish you all the best.
+        </p>
+        <p th:if="${newStatus == 'REJECTED'}">
+            Unfortunately your application was not successful this time. Don't give up —
+            there are many more opportunities waiting for you.
+        </p>
+        <p>
+            <a th:href="${platformUrl + '/applications'}" class="btn">View My Applications</a>
+        </p>
+        <p>— The <span th:text="${fromName}">Job Platform</span> Team</p>
+    </div>
+    <div class="footer">
+        <a th:href="${platformUrl}" th:text="${platformUrl}">jobplatform.com</a>
+    </div>
+</div>
+</body>
+</html>
