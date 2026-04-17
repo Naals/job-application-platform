@@ -100,10 +100,18 @@ jwt:
   secret: ${JWT_SECRET:my-super-secret-key-must-be-at-least-32-chars}
 
 management:
+  health:
+    redis:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus, gateway
+        include: health, info, prometheus, metrics
   tracing:
     sampling:
       probability: 1.0
