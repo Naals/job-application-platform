@@ -50,22 +50,63 @@ spring:
 job-posting-service:
   url: ${JOB_POSTING_URI:http://localhost:8082}
 
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50             # open after 50% failures
+        slowCallRateThreshold: 80            # also open if 80% calls are slow
+        slowCallDurationThreshold: 3000ms
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      job-posting-service:
+        baseConfig: default
+      user-auth-service:
+        baseConfig: default
+        waitDurationInOpenState: 10s         # faster recovery for auth
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - feign.RetryableException
+    instances:
+      job-posting-service:
+        baseConfig: default
+      user-auth-service:
+        baseConfig: default
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 4s
+        cancelRunningFuture: true
+    instances:
+      job-posting-service:
+        baseConfig: default
+      user-auth-service:
+        baseConfig: default
+
 feign:
   circuitbreaker:
     enabled: true
   client:
     config:
       default:
-        connectTimeout: 3000
-        readTimeout: 5000
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      job-posting-service:
-        slidingWindowSize: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10s
+        connectTimeout: 2000
+        readTimeout: 4000
+        loggerLevel: BASIC
 
 management:
   endpoints:
