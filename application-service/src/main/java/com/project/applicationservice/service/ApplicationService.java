@@ -1,6 +1,5 @@
 package com.project.applicationservice.service;
 
-
 import com.project.applicationservice.client.JobClient;
 import com.project.applicationservice.client.dto.JobDto;
 import com.project.applicationservice.config.CacheConfig;
@@ -19,6 +18,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -26,11 +26,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ApplicationService {
 
-    private final ApplicationRepository            applicationRepository;
+    private final ApplicationRepository              applicationRepository;
     private final ApplicationStatusHistoryRepository historyRepository;
-    private final ApplicationMapper                mapper;
-    private final JobClient                        jobClient;
-    private final ApplicationEventPublisher        eventPublisher;
+    private final ApplicationMapper                  mapper;
+    private final JobClient                          jobClient;
+    private final ApplicationEventPublisher          eventPublisher;
+
+    // ── apply
 
     @Transactional
     @CacheEvict(value = CacheConfig.CANDIDATE_APPS_CACHE, key = "#candidateId")
@@ -59,19 +61,24 @@ public class ApplicationService {
 
         application = applicationRepository.save(application);
 
-        recordHistory(application, null, ApplicationStatus.SUBMITTED, "Initial application", candidateId);
+        // FIX 4 — no null fromStatus; skip history for initial submission
+        // The appliedAt timestamp on the entity already records when it was submitted.
+        // History is only for transitions AFTER submission.
 
         eventPublisher.publishApplicationSubmitted(application);
-
         log.info("Application submitted: {} by candidate: {}", application.getId(), candidateId);
         return mapper.toResponse(application);
     }
 
+    // ── updateStatus
+
+    // FIX 1 — added candidateId parameter so @CacheEvict key is always available
     @Transactional
-    @CacheEvict(value = CacheConfig.CANDIDATE_APPS_CACHE, key = "#result.candidateId")
+    @CacheEvict(value = CacheConfig.CANDIDATE_APPS_CACHE, key = "#candidateId")
     public ApplicationResponse updateStatus(UUID applicationId,
                                             UpdateStatusRequest req,
-                                            UUID changedBy) {
+                                            UUID changedBy,
+                                            UUID candidateId) { // FIX 1
         Application app = findApplicationById(applicationId);
         ApplicationStatus current = app.getStatus();
         ApplicationStatus next    = req.status();
@@ -90,6 +97,9 @@ public class ApplicationService {
         return mapper.toResponse(app);
     }
 
+    // ── withdraw
+
+    // FIX 2 + FIX 3 — inlined logic, no self-invocation, correct cache eviction
     @Transactional
     @CacheEvict(value = CacheConfig.CANDIDATE_APPS_CACHE, key = "#candidateId")
     public ApplicationResponse withdraw(UUID applicationId, UUID candidateId) {
@@ -99,15 +109,43 @@ public class ApplicationService {
             throw new UnauthorizedApplicationAccessException(applicationId);
         }
 
-        return updateStatus(applicationId,
-                new UpdateStatusRequest(ApplicationStatus.WITHDRAWN, "Withdrawn by candidate"),
-                candidateId);
+        ApplicationStatus current = app.getStatus();
+        ApplicationStatus next    = ApplicationStatus.WITHDRAWN;
+
+        if (!current.canTransitionTo(next)) {
+            throw new InvalidStatusTransitionException(current, next);
+        }
+
+        app.setStatus(next);
+        applicationRepository.save(app);
+
+        recordHistory(app, current, next, "Withdrawn by candidate", candidateId);
+        eventPublisher.publishStatusChanged(app, current, next, "Withdrawn by candidate");
+
+        log.info("Application {} withdrawn by candidate: {}", applicationId, candidateId);
+        return mapper.toResponse(app);
     }
 
+    // ── queries
+
+    // FIX 5 — cache a List, not Page (Page is not deserializable from Redis)
     @Cacheable(value = CacheConfig.CANDIDATE_APPS_CACHE, key = "#candidateId")
+    public List<ApplicationResponse> findByCandidateIdCached(UUID candidateId) {
+        return applicationRepository
+                .findByCandidateIdOrderByAppliedAtDesc(candidateId)
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
     public Page<ApplicationResponse> findByCandidateId(UUID candidateId, Pageable pageable) {
-        return applicationRepository.findByCandidateId(candidateId, pageable)
-                .map(mapper::toResponse);
+        List<ApplicationResponse> all = findByCandidateIdCached(candidateId);
+        int start = (int) pageable.getOffset();
+        int end   = Math.min(start + pageable.getPageSize(), all.size());
+        List<ApplicationResponse> slice = (start >= all.size())
+                ? List.of()
+                : all.subList(start, end);
+        return new PageImpl<>(slice, pageable, all.size());
     }
 
     public Page<ApplicationResponse> findByJobId(UUID jobId, Pageable pageable) {
@@ -119,6 +157,7 @@ public class ApplicationService {
         return mapper.toResponse(findApplicationById(applicationId));
     }
 
+    // ── helpers
 
     private Application findApplicationById(UUID id) {
         return applicationRepository.findById(id)
