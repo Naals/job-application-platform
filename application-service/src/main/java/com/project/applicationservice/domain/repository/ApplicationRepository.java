@@ -17,4 +17,5 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     Page<Application> findByCandidateId(UUID candidateId, Pageable pageable);
     Page<Application> findByJobId(UUID jobId, Pageable pageable);
     List<Application> findByJobIdAndStatus(UUID jobId, ApplicationStatus status);
+    List<Application> findByCandidateIdOrderByAppliedAtDesc(UUID candidateId);
 }

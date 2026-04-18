@@ -73,8 +73,10 @@ public class ApplicationController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateStatusRequest request,
             @RequestHeader("X-User-Id") UUID changedBy) {
+
+        UUID candidateId = applicationService.findById(id).candidateId();
         return ResponseEntity.ok(
-                applicationService.updateStatus(id, request, changedBy));
+                applicationService.updateStatus(id, request, changedBy, candidateId));
     }
 
     @PostMapping("/{id}/withdraw")
