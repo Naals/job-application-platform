@@ -53,7 +53,7 @@ public class JobSearchService {
                     .gte(JsonData.of(req.salaryMin()))
             )));
         }
-        if (req.salaryMin() != null) {
+        if (req.salaryMax() != null) {
             filters.add(Query.of(q -> q.range(r -> r
                     .field("salaryMax")
                     .gte(JsonData.of(req.salaryMin()))
