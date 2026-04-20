@@ -33,7 +33,7 @@ public class KafkaConsumerConfig {
                 StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.jobplatform.*");
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.project.*");
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         return new DefaultKafkaConsumerFactory<>(props);
     }
