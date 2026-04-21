@@ -41,26 +41,16 @@ public class ResumeService {
     @Transactional
     public ResumeResponse upload(MultipartFile file, UUID candidateId) {
 
-        // ── Validation ────────────────────────────────────
-        if (file.isEmpty()) {
-            throw new InvalidFileTypeException("File must not be empty");
-        }
-        if (!ALLOWED_TYPES.contains(file.getContentType())) {
-            throw new InvalidFileTypeException(
-                    "Only PDF and DOCX files are accepted. Got: " + file.getContentType());
-        }
-        if (file.getSize() > maxSizeBytes) {
+        if (file.isEmpty()) throw new InvalidFileTypeException("File must not be empty");
+        if (!ALLOWED_TYPES.contains(file.getContentType()))
+            throw new InvalidFileTypeException("Only PDF and DOCX accepted. Got: " + file.getContentType());
+        if (file.getSize() > maxSizeBytes)
             throw new FileSizeLimitException(file.getSize(), maxSizeBytes);
-        }
 
-        // ── Build object key ──────────────────────────────
         String ext       = getExtension(file.getOriginalFilename());
         String objectKey = "candidates/" + candidateId + "/" + UUID.randomUUID() + ext;
 
-        // ── Upload to MinIO ───────────────────────────────
-        minioService.uploadFile(objectKey, file);
 
-        // ── Deactivate previous resume + persist new ─────
         resumeRepository.deactivateAllForCandidate(candidateId);
 
         Resume resume = Resume.builder()
@@ -73,12 +63,13 @@ public class ResumeService {
                 .build();
 
         resume = resumeRepository.save(resume);
+
+
+        minioService.uploadFile(objectKey, file);
+
         log.info("Resume uploaded: id={} candidate={}", resume.getId(), candidateId);
 
-        // ── Async Tika parse ──────────────────────────────
         tikaParserService.parseAsync(resume.getId());
-
-        // ── Notify via Kafka ──────────────────────────────
         eventPublisher.publishResumeUploaded(resume);
 
         return mapper.toResponse(resume);
