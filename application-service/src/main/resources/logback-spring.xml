@@ -24,6 +24,6 @@
         <appender-ref ref="CONSOLE"/>
     </root>
 
-    <logger name="com.jobplatform" level="DEBUG"/>
+    <logger name="com.project" level="DEBUG"/>
 
 </configuration>
