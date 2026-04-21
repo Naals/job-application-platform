@@ -1,24 +1,26 @@
 package com.project.notificationservice.service;
 
+import com.project.notificationservice.client.UserClient;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-/**
- * Resolves a candidate UUID → email address.
- */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CandidateEmailResolver {
 
-    /**
-     * Returns the email for the given candidateId.
-     * Replace this stub with a real Feign/HTTP call to user-auth-service.
-     */
+    private final UserClient userClient;
+
     @Cacheable("candidate-emails")
     public String resolve(String candidateId) {
-
-        log.debug("Resolving email for candidateId: {}", candidateId);
-        return null; // stub — returns null until Feign is wired
+        try {
+            UserClient.UserDto user = userClient.getUserById(candidateId);
+            return user != null ? user.email() : null;
+        } catch (Exception ex) {
+            log.warn("Failed to resolve email for candidateId {}: {}", candidateId, ex.getMessage());
+            return null;
+        }
     }
 }
