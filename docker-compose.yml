@@ -152,3 +152,114 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes: [grafana_data:/var/lib/grafana]
     networks: [jobnet]
+
+
+  # ── Application Services ──────────────────────────────
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports: ["8080:8080"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PASSWORD: redis_pass
+      JWT_SECRET: my-super-secret-key-must-be-at-least-32-chars
+      USER_AUTH_URI: http://user-auth-service:8081
+      JOB_POSTING_URI: http://job-posting-service:8082
+      APPLICATION_URI: http://application-service:8083
+      NOTIFICATION_URI: http://notification-service:8084
+      RESUME_URI: http://resume-service:8085
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [jobnet]
+
+  user-auth-service:
+    build: ./user-auth-service
+    container_name: user-auth-service
+    ports: ["8081:8081"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-auth:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: auth_pass
+      REDIS_HOST: redis
+      REDIS_PASSWORD: redis_pass
+      JWT_SECRET: my-super-secret-key-must-be-at-least-32-chars
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ZIPKIN_BASE_URL: http://zipkin:9411
+    depends_on:
+      postgres-auth: { condition: service_healthy }
+      redis:         { condition: service_healthy }
+      kafka:         { condition: service_healthy }
+    networks: [jobnet]
+
+  job-posting-service:
+    build: ./job-posting-service
+    container_name: job-posting-service
+    ports: ["8082:8082"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-jobs:5432/jobs_db
+      SPRING_DATASOURCE_USERNAME: jobs_user
+      SPRING_DATASOURCE_PASSWORD: jobs_pass
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      REDIS_HOST: redis
+      REDIS_PASSWORD: redis_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ZIPKIN_BASE_URL: http://zipkin:9411
+    depends_on:
+      postgres-jobs:  { condition: service_healthy }
+      elasticsearch:  { condition: service_healthy }
+      kafka:          { condition: service_healthy }
+    networks: [jobnet]
+
+  application-service:
+    build: ./application-service
+    container_name: application-service
+    ports: ["8083:8083"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-jobs:5432/jobs_db
+      SPRING_DATASOURCE_USERNAME: jobs_user
+      SPRING_DATASOURCE_PASSWORD: jobs_pass
+      REDIS_HOST: redis
+      REDIS_PASSWORD: redis_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JOB_POSTING_SERVICE_URL: http://job-posting-service:8082
+      ZIPKIN_BASE_URL: http://zipkin:9411
+    depends_on:
+      postgres-jobs: { condition: service_healthy }
+      kafka:         { condition: service_healthy }
+    networks: [jobnet]
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports: ["8084:8084"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-noreply@jobplatform.com}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-changeme}
+      USER_AUTH_SERVICE_URL: http://user-auth-service:8081
+      ZIPKIN_BASE_URL: http://zipkin:9411
+    depends_on:
+      kafka: { condition: service_healthy }
+    networks: [jobnet]
+
+  resume-service:
+    build: ./resume-service
+    container_name: resume-service
+    ports: ["8085:8085"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-jobs:5432/jobs_db
+      SPRING_DATASOURCE_USERNAME: jobs_user
+      SPRING_DATASOURCE_PASSWORD: jobs_pass
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: resumes
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ZIPKIN_BASE_URL: http://zipkin:9411
+    depends_on:
+      postgres-jobs: { condition: service_healthy }
+      kafka:         { condition: service_healthy }
+    networks: [jobnet]
