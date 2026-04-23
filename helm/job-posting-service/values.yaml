@@ -1,0 +1,46 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/naals/job-platform/job-posting-service
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8082
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "300m"
+  limits:
+    memory: "1Gi"
+    cpu: "800m"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuThreshold: 70
+  memoryThreshold: 80
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-jobs-service:5432/jobs_db"
+  SPRING_ELASTICSEARCH_URIS: "http://elasticsearch-service:9200"
+  REDIS_HOST: redis-service
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  ZIPKIN_BASE_URL: "http://zipkin:9411"
+  SERVER_PORT: "8082"
+
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 120       # ES connection needs more time
+    periodSeconds: 15
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 60
+    periodSeconds: 10
