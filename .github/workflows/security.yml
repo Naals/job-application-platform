@@ -1,0 +1,94 @@
+name: Security — Trivy + SonarQube
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1'   # every Monday at 2am — weekly full scan
+
+jobs:
+  trivy-scan:
+    name: Trivy scan — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - user-auth-service
+          - job-posting-service
+          - application-service
+          - notification-service
+          - resume-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR
+        run: mvn package -pl ${{ matrix.service }} -am -DskipTests -B
+
+      - name: Build Docker image for scanning
+        run: |
+          docker build -t scan-target:${{ matrix.service }} ./${{ matrix.service }}
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: scan-target:${{ matrix.service }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'       # fail the pipeline on HIGH/CRITICAL CVEs
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}
+
+  sonarqube:
+    name: SonarQube analysis
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # SonarQube needs full history for blame
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build + test with coverage
+        run: mvn clean verify -B -DskipTests=false
+
+      - name: SonarQube scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=job-application-platform \
+            -Dsonar.host.url=${{ env.SONAR_HOST_URL }} \
+            -Dsonar.token=${{ env.SONAR_TOKEN }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+            -B
