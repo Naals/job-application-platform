@@ -1,0 +1,53 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/naals/job-platform/api-gateway
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.jobplatform.com
+  tls:
+    enabled: true
+    secretName: jobplatform-tls
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "200m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuThreshold: 70
+  memoryThreshold: 80
+
+env:
+  REDIS_HOST: redis-service
+  REDIS_PASSWORD: ""      # injected from secret
+  JWT_SECRET: ""          # injected from secret
+  USER_AUTH_URI: http://user-auth-service:8081
+  JOB_POSTING_URI: http://job-posting-service:8082
+  APPLICATION_URI: http://application-service:8083
+  NOTIFICATION_URI: http://notification-service:8084
+  RESUME_URI: http://resume-service:8085
+
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 30
+    periodSeconds: 10
