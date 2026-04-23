@@ -1,0 +1,66 @@
+name: Release — Helm deploy to Kubernetes
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/job-platform
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.service }} to K8s
+    runs-on: ubuntu-latest
+    environment: production
+
+    strategy:
+      max-parallel: 1
+      matrix:
+        service:
+          - api-gateway
+          - user-auth-service
+          - job-posting-service
+          - application-service
+          - notification-service
+          - resume-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.14.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Extract version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Deploy ${{ matrix.service }}
+        run: |
+          helm upgrade --install ${{ matrix.service }} ./helm/${{ matrix.service }} \
+            --namespace jobplatform \
+            --create-namespace \
+            --set image.tag=${{ steps.version.outputs.VERSION }} \
+            --set image.repository=${{ env.IMAGE_PREFIX }}/${{ matrix.service }} \
+            --wait \
+            --timeout 5m \
+            --atomic
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/${{ matrix.service }} \
+            -n jobplatform \
+            --timeout=3m
