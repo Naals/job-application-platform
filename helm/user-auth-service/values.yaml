@@ -1,0 +1,45 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/naals/job-platform/user-auth-service
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8081
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "200m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  cpuThreshold: 70
+  memoryThreshold: 80
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-auth-service:5432/auth_db"
+  REDIS_HOST: redis-service
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  ZIPKIN_BASE_URL: "http://zipkin:9411"
+  SERVER_PORT: "8081"
+
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 90
+    periodSeconds: 15
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 45
+    periodSeconds: 10
